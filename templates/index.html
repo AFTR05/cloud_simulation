@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Contenedores</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #4CAF50;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+        }
+
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .file-upload-button {
+            background-color: #2196F3;
+        }
+
+        .file-upload-button:hover {
+            background-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gestión de Contenedores Docker</h1>
+    <div>
+        <button id="create-container">Crear Contenedor</button>
+    </div>
+    <h2>Contenedores Activos</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Puertos</th>
+                <th>Acciones</th>
+                <th>Subir Archivo</th> <!-- Nueva columna para subir archivos -->
+            </tr>
+        </thead>
+        <tbody id="container-table-body">
+            <!-- Contenedores serán listados aquí -->
+        </tbody>
+    </table>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:5000';
+
+        // Función para obtener la lista de contenedores
+        async function fetchContainers() {
+            try {
+                const response = await fetch(`${API_URL}/contenedores`);
+                const data = await response.json();
+                renderContainers(data);
+            } catch (error) {
+                console.error('Error al obtener contenedores:', error);
+            }
+        }
+
+        // Función para renderizar los contenedores en la tabla
+        function renderContainers(containers) {
+            const tableBody = document.getElementById('container-table-body');
+            tableBody.innerHTML = ''; // Limpiar tabla
+
+            containers.forEach(container => {
+                const row = document.createElement('tr');
+
+                const idCell = document.createElement('td');
+                idCell.textContent = container.id;
+                row.appendChild(idCell);
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = container.name;
+                row.appendChild(nameCell);
+
+                const statusCell = document.createElement('td');
+                statusCell.textContent = container.status;
+                row.appendChild(statusCell);
+
+                const portsCell = document.createElement('td');
+                portsCell.textContent = JSON.stringify(container.ports);
+                row.appendChild(portsCell);
+
+                const actionsCell = document.createElement('td');
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Eliminar';
+                deleteButton.className = 'delete-button';
+                deleteButton.onclick = () => deleteContainer(container.name);
+                actionsCell.appendChild(deleteButton);
+                row.appendChild(actionsCell);
+
+                // Columna para subir archivos
+                const uploadCell = document.createElement('td');
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.id = `file-input-${container.name}`;  // ID único por contenedor
+                const uploadButton = document.createElement('button');
+                uploadButton.textContent = 'Subir Archivo';
+                uploadButton.className = 'file-upload-button';
+                uploadButton.onclick = () => uploadFile(container.name);
+                uploadCell.appendChild(fileInput);
+                uploadCell.appendChild(uploadButton);
+                row.appendChild(uploadCell);
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Función para crear un nuevo contenedor
+        async function createContainer() {
+            try {
+                const response = await fetch(`${API_URL}/crear`, { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+                fetchContainers(); // Actualizar la lista
+            } catch (error) {
+                console.error('Error al crear contenedor:', error);
+            }
+        }
+
+        // Función para eliminar un contenedor
+        async function deleteContainer(name) {
+            if (!confirm(`¿Estás seguro de eliminar el contenedor '${name}'?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/contenedores/${name}`, { method: 'DELETE' });
+                const data = await response.json();
+                alert(data.message || data.error);
+                fetchContainers(); // Actualizar la lista
+            } catch (error) {
+                console.error('Error al eliminar contenedor:', error);
+            }
+        }
+
+        // Función para subir un archivo
+        async function uploadFile(containerName) {
+            const fileInput = document.getElementById(`file-input-${containerName}`);
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Por favor seleccione un archivo.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('archivo', file);  // Se envía el archivo con el nombre 'file'
+            formData.append('container_name', containerName);  // Puedes agregar más datos si es necesario
+
+            try {
+                const response = await fetch(`${API_URL}/subir-archivo`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+                alert(data.message);
+                fetchContainers();  // Actualizar la lista
+            } catch (error) {
+                console.error('Error al subir el archivo:', error);
+            }
+        }
+
+        // Agregar evento al botón de crear contenedor
+        document.getElementById('create-container').addEventListener('click', createContainer);
+
+        // Cargar lista inicial de contenedores
+        fetchContainers();
+    </script>
+</body>
+</html>
+
